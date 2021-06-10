@@ -1,0 +1,122 @@
+package com.antra.movie_rating.controller;
+
+import com.antra.movie_rating.api.request.MovieCriteria;
+import com.antra.movie_rating.api.response.MovieListResp;
+import com.antra.movie_rating.api.response.MovieVO;
+import com.antra.movie_rating.config.security.LoginUser;
+import com.antra.movie_rating.config.security.UserPrincipal;
+import com.antra.movie_rating.domain.Movie;
+import com.antra.movie_rating.exception.MovieNotExistExeption;
+import com.antra.movie_rating.service.MovieService;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.Authorization;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.annotation.Secured;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@RestController
+@CrossOrigin("*")
+@Secured({"ROLE_USER", "ROLE_ADMIN"})
+
+public class MovieController {
+
+	@Autowired
+	MovieService movieService;
+
+	@GetMapping("/movie")
+
+	public MovieListResp getMovie(@RequestParam String title,  @LoginUser UserPrincipal user){
+		Movie movie = movieService.searchMovie(new MovieCriteria(title));
+		if (StringUtils.isEmpty(movie.getTitle())) {
+			throw new MovieNotExistExeption();
+		}
+		MovieListResp resp = new MovieListResp();
+		resp.setMovies(Arrays.asList(new MovieVO(movie)));
+		return resp;
+	}
+
+	/**
+	 * @Author Jing
+	 * @param imdbID unique value
+	 *
+	 * @return if it exists, it will just return one value
+	 */
+	@GetMapping("/movie/imdbID")
+	public MovieVO getMovieByImdbID(@RequestParam String imdbID){
+
+		Movie movie=movieService.searchMovieByImdbID(imdbID);
+
+		if (movie==null) {
+			throw new MovieNotExistExeption();
+		}
+		MovieVO resp = new MovieVO(movie);
+
+		return resp;
+	}
+
+	@PostMapping("/movie/all")
+	public MovieListResp searchMovie() {//@RequestBody Pageable criteria
+		List<Movie> movies = movieService.searchAllMovies();
+		if (movies.size() < 1) {
+			throw new MovieNotExistExeption();
+		}
+		MovieListResp resp = new MovieListResp();
+		resp.setMovies(movies.stream().map(m->new MovieVO(m)).collect(Collectors.toList()));
+		return resp;
+	}
+
+	@GetMapping("/movie/popular")
+	public MovieListResp getPopularMovies(){
+		List<Movie> movies = movieService.searchMovie();
+		if (movies.size() < 1) {
+			throw new MovieNotExistExeption();
+		}
+		MovieListResp resp = new MovieListResp();
+		resp.setMovies(movies.stream().map(m->new MovieVO(m)).collect(Collectors.toList()));
+		return resp;
+	}
+
+	@GetMapping("/movie/popular/type")
+	public MovieListResp getMovieTypes(@RequestParam String type){
+		List<Movie> movies = movieService.searchMovie(type);
+		if (movies.size() < 1) {
+			throw new MovieNotExistExeption();
+		}
+		MovieListResp resp = new MovieListResp();
+		resp.setMovies(movies.stream().map(m->new MovieVO(m)).collect(Collectors.toList()));
+		return resp;
+	}
+
+	@GetMapping("/movieDetail")
+	public MovieVO getMovieDetail(@RequestParam String title){
+		Movie movie = movieService.searchMovie(new MovieCriteria(title));
+		if (StringUtils.isEmpty(movie.getTitle())) {
+			throw new MovieNotExistExeption();
+		}
+		return new MovieVO(movie);
+	}
+
+	@GetMapping("/ratingTotal")
+	public Map<String, String> getMovieDetail(@RequestParam Integer userId){
+		Map<String, String> response = new HashMap<>();
+		response.put("totalNo", String.valueOf(12));
+		response.put("userId", String.valueOf(userId));
+		return response;
+	}
+
+	@ExceptionHandler
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public void noMovieFound(MovieNotExistExeption ex) {
+
+	}
+}
